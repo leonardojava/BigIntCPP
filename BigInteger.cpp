@@ -2,8 +2,16 @@
 #include <cmath>
 #include <iostream>
 #include <cassert>
+#include <vector>
+
+
+//TODO: REFACATOR ALL OF TS 
+//make this just a singly linked list?
+#define p 3
+#define max_powa pow(10,p)
 struct ListNode{
-    long val;
+    //where big integers are stored in reverse order, head node is the last digits "123456" -> (456)-(123)
+    long long val;
     ListNode* next ;
     ListNode* prev; 
 }; 
@@ -15,12 +23,13 @@ class BigInteger{
         std::string origin;
         int length;
         int sign;
-        int p = 3;
-        int max_powa = pow(10,p);
+        
         BigInteger(ListNode* head, ListNode* tail, int sign){
             this->head = head;
             this->tail = tail;
             this->sign = sign;
+            this->origin = this->toString();
+            this->length = ceil(this->origin.length() / static_cast<float>(p));
         }
         BigInteger copy(const BigInteger& N) const{
             int sign = N.sign;
@@ -46,8 +55,6 @@ class BigInteger{
         }
     public:
         BigInteger(std::string s){
-            // Initialize pointers
-            
             this->origin = s;
             this->head = nullptr;
             this->tail = nullptr;  
@@ -69,12 +76,12 @@ class BigInteger{
                 this->sign = 1;
             }
             
-            long curr = 0;
+            long long curr = 0;
             int curr_pow = 1;
             for(int i = s.length() - 1; i >= start_idx; i--){
                 curr += (s[i] - '0') * curr_pow;
                 curr_pow *= 10;
-                if(curr_pow == this->max_powa){
+                if(curr_pow == max_powa){
                     ListNode* new_node = new ListNode();
                     this->length++;
                     new_node->val = curr;
@@ -126,6 +133,56 @@ class BigInteger{
             }
             return false;
         }
+        BigInteger multiply(const BigInteger &N) const{
+            if(N.origin == "0" || this->origin == "0") return BigInteger("0");
+            if(N.origin == "1") return copy(*this);
+            if(this->origin == "1") return copy(N);
+        
+            int sign = N.sign * this->sign;
+            std::vector<long long> list(N.length + this->length);
+
+            ListNode* l1 = this->tail;
+            ListNode* l2 = N.tail;
+            int i = 0;
+            while(l1 != nullptr){
+                ListNode* l2 = N.tail;
+                int j = 0;
+                while(l2 != nullptr){
+                    list[i + j] += l1->val * l2->val;
+                    l2 = l2->prev;
+                    j++;
+                }
+                l1 = l1->prev;
+                i++;
+            }
+            long long carry = 0;
+            for(int k = 0; k < list.size();k++){
+                list[k] += carry;
+                carry = list[k] / max_powa;
+                list[k] %= static_cast<int>(max_powa);
+            }
+            if(carry > 0){
+                list.push_back(carry);
+            }
+
+            while(list.size() > 1 && list.back() == 0) list.pop_back();
+
+            ListNode* dummy = new ListNode();
+            ListNode* head = dummy;
+
+            for(int k = 0; k < list.size(); k++){
+                ListNode* new_node = new ListNode();
+                new_node->val = list[k];
+                head->prev = new_node;
+                new_node->next = head;
+                head = head->prev;
+            }
+            ListNode* real_tail = dummy->prev;
+            real_tail->next = nullptr;
+            dummy->prev = nullptr; //is allat necessary can I just delete dummy? who knows mane
+            delete dummy;
+            return BigInteger(head,tail,sign);
+        }
         BigInteger subtract(const BigInteger &N) const{
             bool this_is_lesser = this->absLesser(N);
             ListNode* lesser = this_is_lesser ? this->tail : N.tail;
@@ -135,15 +192,15 @@ class BigInteger{
             int sign1 = this->sign;
             int sign2 = N.sign;
             
-            long remainder = 0;
+            long long remainder = 0;
             ListNode* dummy = new ListNode();
             ListNode* res = dummy;
             while(greater != nullptr && lesser != nullptr){
-                long diff = greater->val - lesser->val;
+                long long diff = greater->val - lesser->val;
                 diff += remainder;
                 remainder = 0;
                 if(diff < 0){
-                    diff += this->max_powa;
+                    diff += max_powa;
                     remainder = -1;
                 }
 
@@ -157,10 +214,10 @@ class BigInteger{
                 lesser = lesser->prev;
             }
             while(greater != nullptr){
-                long diff = greater->val + remainder;
+                long long diff = greater->val + remainder;
                 remainder = 0;
                 if(diff < 0){
-                    diff += this-> max_powa;
+                    diff += max_powa;
                     remainder = -1;
                 }
                 ListNode* new_node = new ListNode();
@@ -207,13 +264,13 @@ class BigInteger{
             }
             ListNode* dummy = new ListNode();
             ListNode* res = dummy;
-            long remainder = 0;
+            long long remainder = 0;
             while(curr1 != nullptr && curr2 != nullptr){
-                long sum = curr1->val + curr2->val;
+                long long sum = curr1->val + curr2->val;
                 sum += remainder;
                 remainder = 0;
-                if(sum >= this->max_powa){
-                    sum -= this->max_powa;
+                if(sum >= max_powa){
+                    sum -= max_powa;
                     remainder = 1;
                 }
                 ListNode* new_node = new ListNode();
@@ -227,13 +284,13 @@ class BigInteger{
             }
             if(curr1 != nullptr){
                 while(curr1 != nullptr){
-                    long sum = curr1->val;
+                    long long sum = curr1->val;
                     if(remainder == 1){
                         sum += remainder;
                         remainder = 0;
                     }
-                    if(sum >= this->max_powa){
-                        sum -= this->max_powa;
+                    if(sum >= max_powa){
+                        sum -= max_powa;
                         remainder = 1;
                     }
                     
@@ -248,14 +305,14 @@ class BigInteger{
             else if(curr2 != nullptr){
                 if(curr2 != nullptr){
                     while(curr2 != nullptr){
-                        long sum = curr2->val;
+                        long long sum = curr2->val;
                         if(remainder == 1){
                             sum += remainder;
                             remainder = 0;
                         }
                         
-                        if(sum >= this->max_powa){
-                            sum -= this->max_powa;
+                        if(sum >= max_powa){
+                            sum -= max_powa;
                             remainder = 1;
                         }
                         
@@ -303,7 +360,7 @@ class BigInteger{
             curr = curr->next;
             while(curr != nullptr){
                 std::string group = std::to_string(curr->val);
-                while(group.length() < this->p){
+                while(group.length() < p){
                     group = "0" + group;
                 }
                 res += group;
@@ -315,7 +372,6 @@ class BigInteger{
 };
 
 int main() {
-    
     assert((BigInteger("123").add(BigInteger("456"))).toString() == "579");
     assert((BigInteger("999").add(BigInteger("1"))).toString() == "1000");
     assert((BigInteger("1000").subtract(BigInteger("1"))).toString() == "999");
@@ -328,9 +384,62 @@ int main() {
     assert((BigInteger("999").subtract(BigInteger("1000"))).toString() == "-1");
     assert((BigInteger("-999").add(BigInteger("1000"))).toString() == "1");
     assert((BigInteger("999").add(BigInteger("-1000"))).toString() == "-1");
+
+    assert((BigInteger("0").multiply(BigInteger("0"))).toString() == "0");
+    assert((BigInteger("1").multiply(BigInteger("1"))).toString() == "1");
+    assert((BigInteger("2").multiply(BigInteger("3"))).toString() == "6");
+    assert((BigInteger("123").multiply(BigInteger("456"))).toString() == "56088");
+    assert((BigInteger("999").multiply(BigInteger("999"))).toString() == "998001");
+    assert((BigInteger("1000").multiply(BigInteger("1000"))).toString() == "1000000");
+
+    assert((BigInteger("123456789").multiply(BigInteger("987654321"))).toString() == "121932631112635269");
+    assert((BigInteger("1000000000").multiply(BigInteger("1000000000"))).toString() == "1000000000000000000");
+
+    assert((BigInteger("-2").multiply(BigInteger("3"))).toString() == "-6");
+    assert((BigInteger("2").multiply(BigInteger("-3"))).toString() == "-6");
+    assert((BigInteger("-2").multiply(BigInteger("-3"))).toString() == "6");
+
+    assert((BigInteger("123456789").multiply(BigInteger("0"))).toString() == "0");
+    assert((BigInteger("-123456789").multiply(BigInteger("0"))).toString() == "0");
+    assert((BigInteger("0").multiply(BigInteger("-123456789"))).toString() == "0");
+
+
+
+
     std::cout<<"All these tests pass yiay";
     
     
 
     return 0;
 }
+/* assert((BigInteger("123").add(BigInteger("456"))).toString() == "579");
+    assert((BigInteger("999").add(BigInteger("1"))).toString() == "1000");
+    assert((BigInteger("1000").subtract(BigInteger("1"))).toString() == "999");
+
+    assert((BigInteger("-123").add(BigInteger("-456"))).toString() == "-579");
+    assert((BigInteger("-999").add(BigInteger("-1"))).toString() == "-1000");
+    assert((BigInteger("-1000").subtract(BigInteger("-1"))).toString() == "-999");
+
+    assert((BigInteger("1000").subtract(BigInteger("999"))).toString() == "1");
+    assert((BigInteger("999").subtract(BigInteger("1000"))).toString() == "-1");
+    assert((BigInteger("-999").add(BigInteger("1000"))).toString() == "1");
+    assert((BigInteger("999").add(BigInteger("-1000"))).toString() == "-1");
+
+    assert((BigInteger("0").multiply(BigInteger("0"))).toString() == "0");
+    assert((BigInteger("1").multiply(BigInteger("1"))).toString() == "1");
+    assert((BigInteger("2").multiply(BigInteger("3"))).toString() == "6");
+    assert((BigInteger("123").multiply(BigInteger("456"))).toString() == "56088");
+    assert((BigInteger("999").multiply(BigInteger("999"))).toString() == "998001");
+    assert((BigInteger("1000").multiply(BigInteger("1000"))).toString() == "1000000");
+
+    assert((BigInteger("123456789").multiply(BigInteger("987654321"))).toString() == "121932631112635269");
+    assert((BigInteger("1000000000").multiply(BigInteger("1000000000"))).toString() == "1000000000000000000");
+
+    assert((BigInteger("-2").multiply(BigInteger("3"))).toString() == "-6");
+    assert((BigInteger("2").multiply(BigInteger("-3"))).toString() == "-6");
+    assert((BigInteger("-2").multiply(BigInteger("-3"))).toString() == "6");
+
+    assert((BigInteger("123456789").multiply(BigInteger("0"))).toString() == "0");
+    assert((BigInteger("-123456789").multiply(BigInteger("0"))).toString() == "0");
+    assert((BigInteger("0").multiply(BigInteger("-123456789"))).toString() == "0");
+*/
